@@ -9,5 +9,8 @@
   },
   "devDependencies": {
     "typescript": "^5.0.2"
+  },
+  "scripts": {
+    "live": "tsc --watch & livereload public --port 7777 & $BROWSER localhost:7777 && node dist/index.js --watch"
   }
 }

@@ -118,7 +118,11 @@ function incrementalBuild() {
 function doIncrementalBuild() {
 	for (let [outputFile, job] of renderJobs.entries()) {
 		if (invalid.includes(outputFile)) {
-			buildComponent(job)
+			try {
+				buildComponent(job)
+			} catch(e) {
+				console.warn(`${outputFile} failed with error ${e}`)
+			}
 		}
 	}
 	invalid = []
