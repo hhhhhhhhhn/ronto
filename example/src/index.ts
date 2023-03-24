@@ -1,5 +1,11 @@
-import {renderComponent, build} from "preactssg"
+import {renderComponent, build, watch} from "preactssg"
 
-renderComponent("comps/Counter.tsx", {}, "public/counter.html")
+function builder() {
+	renderComponent("comps/Counter.tsx", {}, "public/counter.html")
+}
 
-build()
+if (process.argv.includes("--watch")) {
+	watch(builder)
+} else {
+	build(builder)
+}

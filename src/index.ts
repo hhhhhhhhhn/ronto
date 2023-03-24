@@ -1,35 +1,125 @@
 import { render } from "preact-render-to-string"
 import fs from "fs"
+import chokidar from "chokidar"
 import path from "path"
 import dependencyTree from "dependency-tree"
 
-type outputFile = {
+type renderJob = {
 	componentPath: string,
-	dependencies: string[],
 	props: object,
 	outputPath: string,
 }
-let outputFiles: Map<string, outputFile> = new Map()
+let renderJobs: Map<string, renderJob> = new Map() // outputPath -> renderJob
+let dependencies: Map<string, string[]> = new Map() // file -> dependencies
+let invalid: string[] = []
 
-export function renderComponent(componentPath: string, props: object, outputPath: string) {
-	console.log(`Rendering ${componentPath}`)
-	let err = new Error()
-	let dir = path.dirname(err.stack?.split("\n")[2].split(":")[0].split("(")[1] || "")
-	componentPath = path.join(dir, componentPath.split(".")[0] + ".js")
-	let dependencies = dependencyTree.toList({
+export function fillDependencyGraph(componentPath: string, rootDir: string) {
+	componentPath = path.resolve(componentPath)
+	if (dependencies.has(componentPath)) {
+		return
+	}
+	let deps = dependencyTree.toList({
 		filename: componentPath,
 		directory: process.cwd(),
 		filter: path => path.indexOf("node_modules") === -1,
 	})
-	outputFiles.set(outputPath, {dependencies, outputPath, componentPath, props})
+	try {
+		let extraDeps: string[] = require(componentPath).dependencies || []
+		extraDeps = extraDeps.map(p => path.resolve(path.dirname(componentPath), p))
+		deps = deps.concat(extraDeps)
+	} catch(e) {
+		// console.warn(e)
+	}
+
+	dependencies.set(componentPath, deps)
+
+	deps.forEach(dep => fillDependencyGraph(dep, rootDir))
+}
+
+export function renderComponent(componentPath: string, props: object, outputPath: string, dependsOn: string[] = []) {
+	let err = new Error()
+	let dir = path.dirname(err.stack?.split("\n")[2].split(":")[0].split("(")[1] || "")
+	componentPath = path.join(dir, componentPath.split(".")[0] + ".js")
+	outputPath = path.resolve(outputPath)
+	dependsOn = dependsOn.map(f => path.resolve(f))
+	dependencies.set(outputPath, [componentPath, ...dependsOn])
+	fillDependencyGraph(componentPath, process.cwd())
+	renderJobs.set(outputPath, {outputPath, componentPath, props})
 	console.log(dependencies)
 }
 
-export function build() {
-	for (let [dest, outputFile] of outputFiles.entries()) {
-		let component = require(outputFile.componentPath).default
-		let html = render(component(outputFile.props))
-		fs.mkdirSync(path.dirname(dest), {recursive: true})
-		fs.writeFile(dest, html, () => {})
+export function build(builder: () => void) {
+	builder()
+	for (let [_, job] of renderJobs.entries()) {
+		buildComponent(job)
 	}
+}
+
+function buildComponent(file: renderJob) {
+	console.log(`Rendering ${file.outputPath}`)
+	let component = require(file.componentPath).default
+	let html = render(component(file.props))
+	fs.mkdirSync(path.dirname(file.outputPath), {recursive: true})
+	fs.writeFile(file.outputPath, html, () => {console.log(`Wrote ${html.length} bytes`)})
+	delete require.cache[require.resolve(file.componentPath)]
+}
+
+export function watch(builder: () => void) {
+	builder()
+	let watcher = chokidar.watch(process.cwd(), {ignored: /.*node_modules.*/})
+	watcher.on("add", (file) => {
+		file = path.resolve(file)
+		renderJobs = new Map()
+		dependencies = new Map()
+		builder()
+		if (!renderJobs.has(file)) {
+			invalidate(path.resolve(file))
+			incrementalBuild()
+		}
+	})
+	watcher.on("unlink", (file) => {
+		file = path.resolve(file)
+		renderJobs = new Map()
+		dependencies = new Map()
+		builder()
+		if (!renderJobs.has(file)) {
+			invalidate(path.resolve(file))
+			incrementalBuild()
+		}
+	})
+	watcher.on("change", (file) => {
+		file = path.resolve(file)
+		if (!renderJobs.has(file)) {
+			invalidate(path.resolve(file))
+			incrementalBuild()
+		}
+	})
+}
+
+function invalidate(filename: string) {
+	console.log(`Invalidating ${filename}`)
+	invalid.push(filename)
+	for (let [file, deps] of dependencies.entries()) {
+		if (deps.includes(filename) && !invalid.includes(file)) {
+			invalidate(file)
+		}
+	}
+}
+
+let incrementalBuildTimer: NodeJS.Timeout | null = null
+
+function incrementalBuild() {
+	if (incrementalBuildTimer) {
+		clearTimeout(incrementalBuildTimer)
+	}
+	incrementalBuildTimer = setTimeout(doIncrementalBuild, 50)
+}
+
+function doIncrementalBuild() {
+	for (let [outputFile, job] of renderJobs.entries()) {
+		if (invalid.includes(outputFile)) {
+			buildComponent(job)
+		}
+	}
+	invalid = []
 }

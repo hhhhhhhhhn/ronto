@@ -5,3 +5,5 @@ export default function Button({text = "Button"}) {
 		</button>
 	)
 }
+
+export let dependencies = ["../file.md"]
