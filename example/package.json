@@ -1,0 +1,13 @@
+{
+  "name": "example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "preact": "^10.13.1",
+    "preactssg": "file:.."
+  },
+  "devDependencies": {
+    "typescript": "^5.0.2"
+  }
+}
