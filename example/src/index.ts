@@ -1,4 +1,4 @@
-import {renderComponent, build, watch} from "preactssg"
+import {renderComponent, build, watch} from "ronto"
 
 function builder() {
 	renderComponent("comps/Main.tsx", {}, "public/index.html")
