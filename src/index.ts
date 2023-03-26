@@ -107,9 +107,8 @@ function invalidate(filename: string) {
 			invalidate(file)
 		}
 	}
-	for (let i = 0; i < 10 && filename != process.cwd(); i++) {
-		filename = path.dirname(filename);
-		invalidate(filename);
+	if (filename != process.cwd()) {
+		invalidate(path.dirname(filename));
 	}
 }
 

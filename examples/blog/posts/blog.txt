@@ -1,6 +1,0 @@
-This is an example
-
-The blog format is just plain text.
-
-It does support multiple parragraphs,
-but no more than that.

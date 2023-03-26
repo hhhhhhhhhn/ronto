@@ -1,0 +1,5 @@
+This is a simple post
+
+It has two lines.
+
+On different parragraphs.

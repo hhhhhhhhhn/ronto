@@ -104,9 +104,8 @@ function invalidate(filename) {
             invalidate(file);
         }
     }
-    for (let i = 0; i < 10 && filename != process.cwd(); i++) {
-        filename = path_1.default.dirname(filename);
-        invalidate(filename);
+    if (filename != process.cwd()) {
+        invalidate(path_1.default.dirname(filename));
     }
 }
 let incrementalBuildTimer = null;
