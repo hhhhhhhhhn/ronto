@@ -11,6 +11,7 @@ type renderJob = {
 }
 
 let renderJobs: Map<string, renderJob> = new Map() // outputPath -> renderJob
+let copyJobs: Map<string, string> = new Map() // src -> dest
 let dependencies: Map<string, string[]> = new Map() // file -> dependencies
 let invalid: string[] = []
 
@@ -49,10 +50,21 @@ export function renderComponent(componentPath: string, props: object, outputPath
 	console.log(dependencies)
 }
 
+export function copy(src: string, dest: string) {
+	src = path.resolve(src)
+	dest = path.resolve(dest)
+	dependencies.set(dest, [src])
+	copyJobs.set(src, dest)
+	console.log(dependencies)
+}
+
 export function build(builder: () => void) {
 	builder()
 	for (let [_, job] of renderJobs.entries()) {
 		buildComponent(job)
+	}
+	for (let [src, dest] of copyJobs.entries()) {
+		copyFile(src, dest)
 	}
 }
 
@@ -63,6 +75,12 @@ function buildComponent(file: renderJob) {
 	fs.mkdirSync(path.dirname(file.outputPath), {recursive: true})
 	fs.writeFile(file.outputPath, html, () => {console.log(`Wrote ${html.length} bytes`)})
 	delete require.cache[require.resolve(file.componentPath)]
+}
+
+function copyFile(src: string, dest: string) {
+	fs.mkdirSync(path.dirname(dest), {recursive: true})
+	fs.cpSync(src, dest, {recursive: true})
+	console.log(`Copied ${src} to ${dest}`)
 }
 
 export function watch(builder: () => void) {
@@ -108,6 +126,7 @@ function invalidate(filename: string) {
 		}
 	}
 	if (filename != process.cwd()) {
+		console.log("Invalidating parent")
 		invalidate(path.dirname(filename));
 	}
 }
@@ -128,6 +147,15 @@ function doIncrementalBuild() {
 				buildComponent(job)
 			} catch(e) {
 				console.warn(`${outputFile} failed with error ${e}`)
+			}
+		}
+	}
+	for (let [src, dest] of copyJobs.entries()) {
+		if (invalid.includes(src)) {
+			try {
+				copyFile(src, dest)
+			} catch(e) {
+				console.warn(`${src} -> ${dest} failed with error ${e}`)
 			}
 		}
 	}

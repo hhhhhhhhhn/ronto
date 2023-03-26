@@ -9,6 +9,7 @@ export default function Post({file = ""}) {
 		<html>
 			<head>
 				<title>{title}</title>
+				<link rel="stylesheet" href="./assets/main.css"/>
 			</head>
 			<body>
 				<h1>{title}</h1>

@@ -1,12 +1,13 @@
 import fs from "fs"
 import path from "path"
-import {renderComponent, watch, build} from "ronto"
+import {renderComponent, watch, build, copy} from "ronto"
 
 function builder() {
-	renderComponent("comps/Index.tsx", {}, `public/index.html`, ["posts"])
+	copy("assets", "public/assets")
+	renderComponent("comps/Index.tsx", {}, `public/index.html`, ["posts", "assets"])
 	for (let file of fs.readdirSync("posts")) {
 		let abs = path.resolve("posts", file)
-		renderComponent("comps/Post.tsx", {file: abs}, `public/${file.split(".")[0]}.html`, [abs])
+		renderComponent("comps/Post.tsx", {file: abs}, `public/${file.split(".")[0]}.html`, [abs, "assets"])
 	}
 }
 

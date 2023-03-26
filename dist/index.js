@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.watch = exports.build = exports.renderComponent = exports.fillDependencyGraph = void 0;
+exports.watch = exports.build = exports.copy = exports.renderComponent = exports.fillDependencyGraph = void 0;
 const preact_render_to_string_1 = require("preact-render-to-string");
 const fs_1 = __importDefault(require("fs"));
 const chokidar_1 = __importDefault(require("chokidar"));
 const path_1 = __importDefault(require("path"));
 const dependency_tree_1 = __importDefault(require("dependency-tree"));
 let renderJobs = new Map(); // outputPath -> renderJob
+let copyJobs = new Map(); // src -> dest
 let dependencies = new Map(); // file -> dependencies
 let invalid = [];
 function fillDependencyGraph(componentPath, rootDir) {
@@ -47,10 +48,21 @@ function renderComponent(componentPath, props, outputPath, dependsOn = []) {
     console.log(dependencies);
 }
 exports.renderComponent = renderComponent;
+function copy(src, dest) {
+    src = path_1.default.resolve(src);
+    dest = path_1.default.resolve(dest);
+    dependencies.set(dest, [src]);
+    copyJobs.set(src, dest);
+    console.log(dependencies);
+}
+exports.copy = copy;
 function build(builder) {
     builder();
     for (let [_, job] of renderJobs.entries()) {
         buildComponent(job);
+    }
+    for (let [src, dest] of copyJobs.entries()) {
+        copyFile(src, dest);
     }
 }
 exports.build = build;
@@ -61,6 +73,11 @@ function buildComponent(file) {
     fs_1.default.mkdirSync(path_1.default.dirname(file.outputPath), { recursive: true });
     fs_1.default.writeFile(file.outputPath, html, () => { console.log(`Wrote ${html.length} bytes`); });
     delete require.cache[require.resolve(file.componentPath)];
+}
+function copyFile(src, dest) {
+    fs_1.default.mkdirSync(path_1.default.dirname(dest), { recursive: true });
+    fs_1.default.cpSync(src, dest, { recursive: true });
+    console.log(`Copied ${src} to ${dest}`);
 }
 function watch(builder) {
     builder();
@@ -105,6 +122,7 @@ function invalidate(filename) {
         }
     }
     if (filename != process.cwd()) {
+        console.log("Invalidating parent");
         invalidate(path_1.default.dirname(filename));
     }
 }
@@ -123,6 +141,16 @@ function doIncrementalBuild() {
             }
             catch (e) {
                 console.warn(`${outputFile} failed with error ${e}`);
+            }
+        }
+    }
+    for (let [src, dest] of copyJobs.entries()) {
+        if (invalid.includes(src)) {
+            try {
+                copyFile(src, dest);
+            }
+            catch (e) {
+                console.warn(`${src} -> ${dest} failed with error ${e}`);
             }
         }
     }

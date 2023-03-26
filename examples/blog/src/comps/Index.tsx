@@ -18,6 +18,7 @@ export default function Post() {
 		<html>
 			<head>
 				<title>Posts</title>
+				<link rel="stylesheet" href="./assets/main.css"/>
 			</head>
 			<body>
 				<h1>List of posts:</h1>
