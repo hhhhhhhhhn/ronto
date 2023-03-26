@@ -66,6 +66,7 @@ function watch(builder) {
     builder();
     let watcher = chokidar_1.default.watch(process.cwd(), { ignored: /.*node_modules.*/ });
     watcher.on("add", (file) => {
+        console.log(`Added ${file}`);
         file = path_1.default.resolve(file);
         renderJobs = new Map();
         dependencies = new Map();
@@ -76,6 +77,7 @@ function watch(builder) {
         }
     });
     watcher.on("unlink", (file) => {
+        console.log(`Removed ${file}`);
         file = path_1.default.resolve(file);
         renderJobs = new Map();
         dependencies = new Map();
@@ -101,6 +103,10 @@ function invalidate(filename) {
         if (deps.includes(filename) && !invalid.includes(file)) {
             invalidate(file);
         }
+    }
+    for (let i = 0; i < 10 && filename != process.cwd(); i++) {
+        filename = path_1.default.dirname(filename);
+        invalidate(filename);
     }
 }
 let incrementalBuildTimer = null;

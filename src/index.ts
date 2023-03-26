@@ -9,6 +9,7 @@ type renderJob = {
 	props: object,
 	outputPath: string,
 }
+
 let renderJobs: Map<string, renderJob> = new Map() // outputPath -> renderJob
 let dependencies: Map<string, string[]> = new Map() // file -> dependencies
 let invalid: string[] = []
@@ -68,6 +69,7 @@ export function watch(builder: () => void) {
 	builder()
 	let watcher = chokidar.watch(process.cwd(), {ignored: /.*node_modules.*/})
 	watcher.on("add", (file) => {
+		console.log(`Added ${file}`)
 		file = path.resolve(file)
 		renderJobs = new Map()
 		dependencies = new Map()
@@ -78,6 +80,7 @@ export function watch(builder: () => void) {
 		}
 	})
 	watcher.on("unlink", (file) => {
+		console.log(`Removed ${file}`)
 		file = path.resolve(file)
 		renderJobs = new Map()
 		dependencies = new Map()
@@ -103,6 +106,10 @@ function invalidate(filename: string) {
 		if (deps.includes(filename) && !invalid.includes(file)) {
 			invalidate(file)
 		}
+	}
+	for (let i = 0; i < 10 && filename != process.cwd(); i++) {
+		filename = path.dirname(filename);
+		invalidate(filename);
 	}
 }
 

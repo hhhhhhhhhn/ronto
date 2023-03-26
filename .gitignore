@@ -1,5 +1,5 @@
 node_modules/
-example/node_modules
 *yarn-error*
-example/dist/
-example/public/
+examples/*/dist/
+examples/*/public/
+examples/*/node_modules/
