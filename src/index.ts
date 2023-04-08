@@ -40,7 +40,7 @@ export function fillDependencyGraph(componentPath: string, rootDir: string) {
 
 export function renderComponent(componentPath: string, props: object, outputPath: string, dependsOn: string[] = []) {
 	let err = new Error()
-	let dir = path.dirname(err.stack?.split("\n")[2].split(":")[0].split("(")[1] || "")
+	let dir = path.dirname(err.stack?.split("\n")[2].split(":")[0].split("at ")[1] || "")
 	componentPath = path.join(dir, componentPath.split(".")[0] + ".js")
 	outputPath = path.resolve(outputPath)
 	dependsOn = dependsOn.map(f => path.resolve(f))
@@ -58,8 +58,8 @@ export function copy(src: string, dest: string) {
 	console.log(dependencies)
 }
 
-export function build(builder: () => void) {
-	builder()
+export async function build(builder: Function) {
+	await builder()
 	for (let [_, job] of renderJobs.entries()) {
 		buildComponent(job)
 	}
@@ -68,10 +68,10 @@ export function build(builder: () => void) {
 	}
 }
 
-function buildComponent(file: renderJob) {
-	console.log(`Rendering ${file.outputPath}`)
+async function buildComponent(file: renderJob) {
+	console.log(`Rendering ${file.outputPath}, from ${file.componentPath}`)
 	let component = require(file.componentPath).default
-	let html = render(component(file.props))
+	let html = render(await component(file.props))
 	fs.mkdirSync(path.dirname(file.outputPath), {recursive: true})
 	fs.writeFile(file.outputPath, html, () => {console.log(`Wrote ${html.length} bytes`)})
 	delete require.cache[require.resolve(file.componentPath)]
@@ -83,9 +83,10 @@ function copyFile(src: string, dest: string) {
 	console.log(`Copied ${src} to ${dest}`)
 }
 
-export function watch(builder: () => void) {
-	builder()
-	let watcher = chokidar.watch(process.cwd(), {ignored: /.*node_modules.*/})
+export async function watch(builder: Function) {
+	console.log("Watching...")
+	await builder()
+	let watcher = chokidar.watch(process.cwd(), {ignored: /.*(node_modules\/|\.git\/).*/})
 	watcher.on("add", (file) => {
 		console.log(`Added ${file}`)
 		file = path.resolve(file)
